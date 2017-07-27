@@ -36,6 +36,7 @@ class ContentBased(AbstractRecommender):
         self._dump_matrices = dump_matrices
         self._verbose = verbose
         self.set_hyperparameters(hyperparameters)
+        self._lambda = self.hyperparameters['_lambda']
         self.set_options(options)
 
     @overrides
