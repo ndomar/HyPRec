@@ -9,12 +9,14 @@ from lib.collaborative_filtering import CollaborativeFiltering
 from lib.content_based import ContentBased
 from lib.evaluator import Evaluator
 from lib.LDA import LDARecommender
+from lib.LDA_CTR import LDACTRRecommender
 #from lib.LDA2Vec import LDA2VecRecommender
 #from lib.SDAE import SDAERecommender
 from util.abstracts_preprocessor import AbstractsPreprocessor
 from util.data_parser import DataParser
 from util.recommender_configuer import RecommenderConfiguration
 from util.model_initializer import ModelInitializer
+from lib.linear_regression import LinearRegression
 
 
 class RecommenderSystem(AbstractRecommender):
@@ -64,6 +66,7 @@ class RecommenderSystem(AbstractRecommender):
         self._train_more = train_more
         self._split_type = 'user'
         self._random_seed = random_seed
+        self.prediction_fold = -1
 
         self.set_hyperparameters(self.config.get_hyperparameters())
         self.set_options(self.config.get_options())
@@ -81,6 +84,9 @@ class RecommenderSystem(AbstractRecommender):
                                               self._verbose, self._load_matrices, self._dump_matrices)
         elif self.config.get_content_based() == 'LDA':
             self.content_based = LDARecommender(self.initializer, self.evaluator, self.hyperparameters, self.options,
+                                                self._verbose, self._load_matrices, self._dump_matrices)
+        elif self.config.get_content_based() == 'LDACTR':
+            self.content_based = LDACTRRecommender(self.initializer, self.evaluator, self.hyperparameters, self.options,
                                                 self._verbose, self._load_matrices, self._dump_matrices)
         elif self.config.get_content_based() == 'LDA2Vec':
             self.content_based = LDA2VecRecommender(self.initializer, self.evaluator, self.hyperparameters,
@@ -139,12 +145,9 @@ class RecommenderSystem(AbstractRecommender):
         """
         self.n_iter = options['n_iterations']
         self.options = options.copy()
+        self.k_folds = options['k_folds']
+        self.splitting_method = 'kfold'
 
-    @overrides
-    def get_evaluation_report(self):
-        if self.config.get_recommender() == 'hybrid':
-            return self.collaborative_filtering.get_evaluation_report()
-        return self.recommender.get_evaluation_report()
 
     @overrides
     def set_hyperparameters(self, hyperparameters):
@@ -172,40 +175,48 @@ class RecommenderSystem(AbstractRecommender):
         """
         assert(self.recommender == self.collaborative_filtering or
                self.recommender == self.content_based or self.recommender == self)
-        if self._verbose:
-            print("Training content-based %s..." % self.content_based)
-        content_based_error = numpy.inf
-        if self.content_based.__class__ != ContentBased:
-            content_based_error = self.content_based.train()
-            # Commented by Anas:
-            # self.content_based.get_predictions()
+        if self.splitting_method == 'naive':
+            self.set_data(*self.evaluator.naive_split(self._split_type))
+        else:
+            self.fold_test_indices = self.evaluator.get_kfold_indices()
+            
+        all_collaborative_errors = []
+        all_content_errors = []
+        all_errors = []
+        for current_k in range(self.k_folds):
+            self.hyperparameters['fold'] = current_k
+            self.content_based.set_data(*self.evaluator.get_fold(current_k, self.fold_test_indices))
+            self.collaborative_filtering.set_data(*self.evaluator.get_fold(current_k, self.fold_test_indices))
+            self.set_data(*self.evaluator.get_fold(current_k, self.fold_test_indices))
 
-            # Optimize unused memory
-            if not self.recommender == self.content_based:
-                del self.content_based.train_data
-                del self.content_based.test_data
-            if hasattr(self.content_based, 'fold_test_indices'):
-                del self.content_based.fold_test_indices
-        if self.recommender == self.collaborative_filtering:
-            theta = None
-            if self.content_based.get_document_topic_distribution() is not None:
-                theta = self.content_based.get_document_topic_distribution().copy()
-            if self._verbose:
-                print("Training collaborative-filtering %s..." % self.collaborative_filtering)
-            if theta is None:
-                return self.collaborative_filtering.train()
-            else:
-                return self.collaborative_filtering.train(theta)
+            # Get the training data mask
+            self.training_data_mask = self.evaluator.get_fold_training_data_mask()
+            self.collaborative_filtering.training_data_mask = self.training_data_mask
 
-        # hybrid recommender:
-        elif self.recommender == self:
-            if self._verbose:
-                print("Training collaborative_filtering %s..." % self.collaborative_filtering)
-            self.collaborative_filtering.set_item_based_recommender(self.content_based)
-            # Changed by anas: passing item_vecs
-            return self.collaborative_filtering.train(item_vecs=self.content_based.get_document_topic_distribution())
-        self.predictions = self.recommender.get_predictions()
-        return content_based_error
+            self.content_based.hyperparameters['fold'] = current_k
+            self.collaborative_filtering.hyperparameters['fold'] = current_k
+            print("Content Report")
+            current_content_error = self.content_based.train_one_fold()
+            all_content_errors.append(current_content_error)
+            print("Collaborative Report")
+            current_collaborative_error = self.collaborative_filtering.train_one_fold()
+            all_collaborative_errors.append(current_collaborative_error)
+            print("Linear Regression Report")
+            regr = LinearRegression(self.train_data, self.test_data, self.content_based.get_predictions(),
+                                        self.collaborative_filtering.get_predictions(), self.training_data_mask)
+            self.predictions = regr.train()
+            self.prediction_fold = self.hyperparameters['fold']
+            all_errors.append(self.get_evaluation_report())
+        report_str = 'Summary: Test sum {:.2f}, Train sum {:.2f}, Final error {:.5f}, train recall {:.5f}, '\
+         'test recall {:.5f}, recall@200 {:.5f}, '\
+         'ratio {:.5f}, mrr@5 {:.5f}, '\
+         'ndcg@5 {:.5f}, mrr@10 {:.5f}, ndcg@10 {:.5f}'
+        
+        print("Content Mean Errors")
+        print(report_str.format(*numpy.mean(all_content_errors, axis=0)))
+        print("Collaborative Mean Errors")
+        print(report_str.format(*numpy.mean(all_collaborative_errors, axis=0)))
+        return numpy.mean(all_errors, axis=0)
 
     @overrides
     def get_predictions(self):
@@ -215,7 +226,7 @@ class RecommenderSystem(AbstractRecommender):
         :returns: A (user, document) matrix of predictions
         :rtype: ndarray
         """
-        if self.predictions is None:
+        if self.predictions is None or not self.prediction_fold == self.hyperparameters['fold']:
             if self.recommender == self:
                 return self.collaborative_filtering.get_predictions()
             else:

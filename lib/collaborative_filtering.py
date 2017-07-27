@@ -53,6 +53,7 @@ class CollaborativeFiltering(AbstractRecommender):
 
         self.set_hyperparameters(hyperparameters)
         self.set_options(options)
+        self.document_distribution = None
 
     @overrides
     def set_hyperparameters(self, hyperparameters):
@@ -120,8 +121,6 @@ class CollaborativeFiltering(AbstractRecommender):
         """
         if item_vecs is not None:
             self.document_distribution = item_vecs.copy()
-        else:
-            self.document_distribution = None
         if self.splitting_method == 'naive':
             self.set_data(*self.evaluator.naive_split(self._split_type))
             self.hyperparameters['fold'] = 0
@@ -315,19 +314,8 @@ class CollaborativeFiltering(AbstractRecommender):
         if self.predictions is None or not self.prediction_fold == self.hyperparameters['fold']:
             collaborative_predictions = self.user_vecs.dot(self.item_vecs.T)
             self.prediction_fold = self.hyperparameters['fold']
+
             self.predictions = collaborative_predictions
-            if self._verbose and self._is_hybrid:
-                print("Evaluating collaborative only..")
-                self.get_evaluation_report()
-            if self._is_hybrid:
-                self.item_based_recommender.set_data(self.train_data, self.test_data)
-                # Train Linear Regression
-                regr = LinearRegression(self.train_data, self.test_data, self.item_based_recommender.get_predictions(),
-                                        collaborative_predictions, self.training_data_mask)
-                self.predictions = regr.train()
-                self.prediction_fold = self.hyperparameters['fold']
-                if self._verbose:
-                    print("returned linear regression ratings")
 
         return self.predictions
 

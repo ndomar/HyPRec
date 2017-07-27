@@ -27,6 +27,7 @@ class LDACTRRecommender(ContentBased):
         :param boolean load_matrices: A flag for reinitializing the matrices.
         :param boolean dump_matrices: A flag for saving the matrices.
         """
+        self.prediction_fold = -1
         super(LDACTRRecommender, self).__init__(initializer, evaluator, hyperparameters, options,
                                              verbose, load_matrices, dump_matrices)
 
@@ -109,6 +110,7 @@ class LDACTRRecommender(ContentBased):
             """
             # Anas Code
             YTY = (fixed_vecs.T * confidence_matrix[u]).dot(fixed_vecs)
+            latent_vectors[u, :] = solve((YTY + lambdaI), (ratings[u, :] * confidence_matrix[u]).dot(fixed_vecs))
         return latent_vectors
 
     def get_predictions(self):
@@ -118,6 +120,7 @@ class LDACTRRecommender(ContentBased):
         :returns: A matrix of users X documents
         :rtype: ndarray
         """
-        if self.predictions is None:
+        if self.predictions is None or not self.prediction_fold == self.hyperparameters:
             self.predictions = self.user_vecs.dot(self.document_distribution.T)
+            self.prediction_fold = self.hyperparameters['fold']
         return self.predictions
