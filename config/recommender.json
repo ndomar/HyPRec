@@ -1,0 +1,21 @@
+{
+    "recommender": {
+        "desc": "sahwaka",
+        "content-based": "LDA",
+        "collaborative-filtering": "ALS",
+        "error-metric": "RMS",
+        "recommender": "hybrid",
+        "hyperparameters": {
+            "_lambda": 0.01,
+            "n_factors": 100
+        },
+        "options": {
+            "experiment_name": "citeulike-t_CTR_Factors_100",
+            "n_iterations": 5,
+            "k_folds": 5,
+            "update_with_items": true,
+            "init_with_content": true,
+            "split_type": "user"
+        }
+    }
+}

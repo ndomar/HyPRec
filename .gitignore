@@ -1,0 +1,19 @@
+*.pyc
+*.swp
+*.swo
+.cache/*
+
+# Data files
+*.dat
+*.csv
+data/*
+
+# Coverage
+*.coverage
+htmlcov
+coverage_report.txt
+
+# Sphinx
+docs/_build
+docs/lib.rst
+docs/util.rst

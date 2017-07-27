@@ -1,0 +1,10 @@
+{
+	"database": {
+		"host": "localhost",
+		"user": "root",
+		"password": "root",
+		"database_name": "sahwaka"
+	},
+	"dataset": "citeulike-t",
+	"store_abstracts": true
+}
