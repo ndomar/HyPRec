@@ -72,7 +72,7 @@ class ContentBased(AbstractRecommender):
 
         :param dict hyperparameters: A dictionary of the hyperparameters.
         """
-        self.n_factors = hyperparameters['n_factors']
+        self.n_topics = hyperparameters['n_topics']
         self.predictions = None
         self.hyperparameters = hyperparameters.copy()
 

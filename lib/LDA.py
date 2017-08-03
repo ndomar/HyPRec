@@ -38,7 +38,7 @@ class LDARecommender(ContentBased):
         # Try to read from file.
         matrix_found = False
         if self._load_matrices is True:
-            matrix_shape = (self.n_items, self.n_factors)
+            matrix_shape = (self.n_items, self.n_topics)
             matrix_found, matrix = self.initializer.load_matrix(self.hyperparameters, 'document_distribution_lda',
                                                                 matrix_shape)
             self.document_distribution = matrix
@@ -58,7 +58,7 @@ class LDARecommender(ContentBased):
         Train LDA Recommender, and store the document_distribution.
         """
         term_freq = self.abstracts_preprocessor.get_term_frequency_sparse_matrix()
-        lda = LatentDirichletAllocation(n_topics=self.n_factors, max_iter=self.n_iter,
+        lda = LatentDirichletAllocation(n_topics=self.n_topics, max_iter=self.n_iter,
                                         learning_method='online',
                                         learning_offset=50., random_state=0,
                                         verbose=0)

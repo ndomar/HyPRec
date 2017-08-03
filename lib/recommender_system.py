@@ -197,9 +197,11 @@ class RecommenderSystem(AbstractRecommender):
             self.collaborative_filtering.hyperparameters['fold'] = current_k
             print("Content Report")
             current_content_error = self.content_based.train_one_fold()
+            document_distrubution = self.content_based.get_document_topic_distribution()
             all_content_errors.append(current_content_error)
             print("Collaborative Report")
-            current_collaborative_error = self.collaborative_filtering.train_one_fold()
+            
+            current_collaborative_error = self.collaborative_filtering.train_one_fold(document_distrubution)
             all_collaborative_errors.append(current_collaborative_error)
             print("Linear Regression Report")
             regr = LinearRegression(self.train_data, self.test_data, self.content_based.get_predictions(),

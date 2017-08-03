@@ -55,6 +55,7 @@ class CollaborativeFiltering(AbstractRecommender):
         self.set_options(options)
         self.document_distribution = None
 
+
     @overrides
     def set_hyperparameters(self, hyperparameters):
         """
@@ -76,7 +77,7 @@ class CollaborativeFiltering(AbstractRecommender):
         :param ndarray ratings: ratings that will be used to optimize latent * fixed
         :param float _lambda: reguralization parameter
         :param str type: either user or item.
-        """
+        """     
         if type == 'user':
             # Precompute
             numpy.where(">1")
@@ -184,6 +185,8 @@ class CollaborativeFiltering(AbstractRecommender):
         :returns: List of error metrics.
         :rtype: list[float]
         """
+        if self._update_with_items:
+            self.document_distribution = item_vecs
         matrices_found = False
         if self._load_matrices is False:
             self.user_vecs = numpy.random.random((self.n_users, self.n_factors))

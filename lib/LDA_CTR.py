@@ -50,7 +50,7 @@ class LDACTRRecommender(ContentBased):
         # Try to read from file.
         matrix_found = False
         if self._load_matrices is True:
-            matrix_shape = (self.n_items, self.n_factors)
+            matrix_shape = (self.n_items, self.n_topics)
             matrix_found, matrix = self.initializer.load_matrix(self.hyperparameters, 'document_distribution_lda',
                                                                 matrix_shape)
             self.document_distribution = matrix
@@ -62,7 +62,7 @@ class LDACTRRecommender(ContentBased):
             self._train()
             if self._dump_matrices:
                 self.initializer.save_matrix(self.document_distribution, 'document_distribution_lda')
-        self.user_vecs = numpy.random.random((self.n_users, self.n_factors))
+        self.user_vecs = numpy.random.random((self.n_users, self.n_topics))
         self.training_data_mask = self.evaluator.get_fold_training_data_mask()
         confidence_matrix = numpy.zeros(self.train_data.shape)
         confidence_matrix[self.training_data_mask] = self.train_data[self.training_data_mask]
@@ -78,12 +78,13 @@ class LDACTRRecommender(ContentBased):
         Train LDA Recommender, and store the document_distribution.
         """
         term_freq = self.abstracts_preprocessor.get_term_frequency_sparse_matrix()
-        lda = LatentDirichletAllocation(n_topics=self.n_factors, max_iter=self.n_iter,
+        lda = LatentDirichletAllocation(n_topics=self.n_topics, max_iter=self.n_iter,
                                         learning_method='online',
                                         learning_offset=50., random_state=0,
                                         verbose=0)
         if self._verbose:
-            print("Initialized LDA model..., Training LDA...")
+            print("Initialized LDA model..., Training LDA_CTR...")
+            print("Topics: {}".format(self.n_topics))
 
         self.document_distribution = lda.fit_transform(term_freq)
         if self._verbose:
@@ -100,7 +101,7 @@ class LDACTRRecommender(ContentBased):
         :param float _lambda: reguralization parameter
         """
         numpy.where(">1")
-        lambdaI = numpy.eye(self.n_factors) * _lambda
+        lambdaI = numpy.eye(self.n_topics) * _lambda
         for u in range(latent_vectors.shape[0]):
             """
             Omar code:
